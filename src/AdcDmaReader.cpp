@@ -34,11 +34,11 @@ void AdcDmaReader::registerCallback(void (*callback)(uint8_t id, uint8_t* buffer
 void AdcDmaReader::dmaHandlerA() {
     if (userCallback) userCallback(0, captureBufA, captureDepth);
     dma_hw->ints0 = 1u << dmaChanA;
-    dma_channel_set_write_addr(dmaChanA, AdcDmaReader::captureBufA, false);
+    dma_channel_set_write_addr(dmaChanA, captureBufA, false);
 };
 
 void AdcDmaReader::dmaHandlerB() {
-    if (userCallback) userCallback(1, AdcDmaReader::captureBufB, captureDepth);
+    if (userCallback) userCallback(1, captureBufB, captureDepth);
     dma_hw->ints1 = 1u << dmaChanB;
     dma_channel_set_write_addr(dmaChanB, captureBufB, false);
 };
@@ -84,6 +84,8 @@ void AdcDmaReader::setupDma() {
 };
 
 // Static member initialization
+uint8_t AdcDmaReader::captureBufA[1024];
+uint8_t AdcDmaReader::captureBufB[1024];
 uint AdcDmaReader::dmaChanA = 0;
 uint AdcDmaReader::dmaChanB = 0;
 int AdcDmaReader::captureDepth = 0;

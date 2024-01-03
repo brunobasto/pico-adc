@@ -29,7 +29,6 @@ private:
 
     static uint8_t captureBufA[1024];
     static uint8_t captureBufB[1024];
-
     static uint dmaChanA, dmaChanB;
     static int captureDepth;
     static void (*userCallback)(uint8_t id, uint8_t *buffer, int size);
