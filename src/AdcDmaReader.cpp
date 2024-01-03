@@ -2,8 +2,8 @@
 
 AdcDmaReader::AdcDmaReader(int channel, int depth) : captureChannel(channel) {
     captureDepth = depth;
-    captureBufA = new uint8_t[captureDepth];
-    captureBufB = new uint8_t[captureDepth];
+    AdcDmaReader::captureBufA = new uint8_t[captureDepth];
+    AdcDmaReader::captureBufB = new uint8_t[captureDepth];
     setupAdc();
     setupDma();
 };
@@ -88,5 +88,7 @@ void AdcDmaReader::setupDma() {
 // Static member initialization
 uint AdcDmaReader::dmaChanA = 0;
 uint AdcDmaReader::dmaChanB = 0;
+uint8_t* AdcDmaReader::captureBufA = nullptr;
+uint8_t* AdcDmaReader::captureBufB = nullptr;
 int AdcDmaReader::captureDepth = 0;
 void (*AdcDmaReader::userCallback)(uint8_t id, uint8_t* buffer, int size) = nullptr;
