@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/adc.h"
-#include "hardware/dma.h"
-#include "hardware/irq.h"
 #include "pico-dma/AdcDmaReader.h"
 
 AdcDmaReader::AdcDmaReader(int channel, int depth) : captureChannel(channel) {
@@ -24,6 +19,14 @@ void AdcDmaReader::startCapture() {
 
 void AdcDmaReader::stopCapture() {
     adc_run(false);
+};
+
+uint8_t* AdcDmaReader::getBufferA() const {
+    return captureBufA;
+};
+
+uint8_t* AdcDmaReader::getBufferB() const {
+    return captureBufB;
 };
 
 void AdcDmaReader::registerCallback(void (*callback)(uint8_t id, uint8_t* buffer, int size)) {
@@ -85,7 +88,5 @@ void AdcDmaReader::setupDma() {
 // Static member initialization
 uint AdcDmaReader::dmaChanA = 0;
 uint AdcDmaReader::dmaChanB = 0;
-uint8_t* AdcDmaReader::captureBufA = nullptr;
-uint8_t* AdcDmaReader::captureBufB = nullptr;
 int AdcDmaReader::captureDepth = 0;
 void (*AdcDmaReader::userCallback)(uint8_t id, uint8_t* buffer, int size) = nullptr;
