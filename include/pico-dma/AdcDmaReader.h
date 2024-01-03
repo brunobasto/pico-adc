@@ -10,7 +10,7 @@ public:
 
     void startCapture();
     void stopCapture();
-    void registerCallback(void (*callback)(uint8_t* buffer, int size));
+    void registerCallback(void (*callback)(uint8_t id, uint8_t* buffer, int size));
 
 private:
     static void dmaHandlerA();
@@ -18,13 +18,12 @@ private:
 
     void setupAdc();
     void setupDma();
-    int getGpioForAdcChannel(int channel);
 
     static uint dmaChanA, dmaChanB;
     static uint8_t* captureBufA;
     static uint8_t* captureBufB;
     static int captureDepth;
-    static void (*userCallback)(uint8_t* buffer, int size);
+    static void (*userCallback)(uint8_t id, uint8_t* buffer, int size);
 
     int captureChannel;
 };

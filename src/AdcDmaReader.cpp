@@ -26,18 +26,18 @@ void AdcDmaReader::stopCapture() {
     adc_run(false);
 };
 
-void AdcDmaReader::registerCallback(void (*callback)(uint8_t* buffer, int size)) {
+void AdcDmaReader::registerCallback(void (*callback)(uint8_t id, uint8_t* buffer, int size)) {
     userCallback = callback;
 };
 
 void AdcDmaReader::dmaHandlerA() {
-    if (userCallback) userCallback(captureBufA, captureDepth);
+    if (userCallback) userCallback(0, captureBufA, captureDepth);
     dma_hw->ints0 = 1u << dmaChanA;
     dma_channel_set_write_addr(dmaChanA, captureBufA, false);
 };
 
 void AdcDmaReader::dmaHandlerB() {
-    if (userCallback) userCallback(captureBufB, captureDepth);
+    if (userCallback) userCallback(1, captureBufB, captureDepth);
     dma_hw->ints1 = 1u << dmaChanB;
     dma_channel_set_write_addr(dmaChanB, captureBufB, false);
 };
@@ -88,4 +88,4 @@ uint AdcDmaReader::dmaChanB = 0;
 uint8_t* AdcDmaReader::captureBufA = nullptr;
 uint8_t* AdcDmaReader::captureBufB = nullptr;
 int AdcDmaReader::captureDepth = 0;
-void (*AdcDmaReader::userCallback)(uint8_t* buffer, int size) = nullptr;
+void (*AdcDmaReader::userCallback)(uint8_t id, uint8_t* buffer, int size) = nullptr;
