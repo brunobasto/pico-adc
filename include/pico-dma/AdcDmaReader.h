@@ -2,23 +2,22 @@
 #define ADC_DMA_READER_H
 
 #include <stdint.h>
-#include <stdio.h>
+#include <vector>
 #include "pico/stdlib.h"
-#include "hardware/adc.h"
 #include "hardware/dma.h"
-#include "hardware/irq.h"
 
+template <typename T>
 class AdcDmaReader
 {
 public:
-    AdcDmaReader(int channel = 4, int depth = 10000);
+    AdcDmaReader(const std::vector<int> &channels, int depth = 10000);
     ~AdcDmaReader();
 
     void startCapture();
     void stopCapture();
-    void registerCallback(void (*callback)(uint8_t id, uint8_t *buffer, int size));
-    uint8_t* getBufferA() const;
-    uint8_t* getBufferB() const;
+    void registerCallback(void (*callback)(uint8_t id, T *buffer, int size));
+    T *getBufferA() const;
+    T *getBufferB() const;
 
 private:
     static void dmaHandlerA();
@@ -26,13 +25,16 @@ private:
 
     void setupAdc();
     void setupDma();
+    void configureRoundRobin();
+    dma_channel_transfer_size getDmaDataSize();
 
-    static uint8_t* captureBufA;
-    static uint8_t* captureBufB;
+    static T *captureBufA;
+    static T *captureBufB;
     static uint dmaChanA, dmaChanB;
     static int captureDepth;
-    static void (*userCallback)(uint8_t id, uint8_t *buffer, int size);
+    static void (*userCallback)(uint8_t id, T *buffer, int size);
 
+    std::vector<int> adcChannels;
     int captureChannel;
 };
 

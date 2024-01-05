@@ -1,73 +1,132 @@
 #include "pico-dma/AdcDmaReader.h"
+#include "pico/stdlib.h"
+#include "hardware/adc.h"
+#include "hardware/irq.h"
+#include <stdio.h>
 
-AdcDmaReader::AdcDmaReader(int channel, int depth) : captureChannel(channel) {
+template <typename T>
+AdcDmaReader<T>::AdcDmaReader(const std::vector<int> &channels, int depth) : adcChannels(channels)
+{
+    static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, uint16_t>::value,
+                  "AdcDmaReader can only be instantiated with uint8_t or uint16_t");
+
     captureDepth = depth;
-    captureBufA = new uint8_t[captureDepth];
-    captureBufB = new uint8_t[captureDepth];
+    captureBufA = new T[captureDepth];
+    captureBufB = new T[captureDepth];
     setupAdc();
     setupDma();
 };
 
-AdcDmaReader::~AdcDmaReader() {
+template <typename T>
+AdcDmaReader<T>::~AdcDmaReader()
+{
     delete[] captureBufA;
     delete[] captureBufB;
 };
 
-void AdcDmaReader::startCapture() {
+template <typename T>
+void AdcDmaReader<T>::startCapture()
+{
     adc_run(true);
 };
 
-void AdcDmaReader::stopCapture() {
+template <typename T>
+void AdcDmaReader<T>::stopCapture()
+{
     adc_run(false);
 };
 
-uint8_t* AdcDmaReader::getBufferA() const {
+template <typename T>
+T *AdcDmaReader<T>::getBufferA() const
+{
     return captureBufA;
 };
 
-uint8_t* AdcDmaReader::getBufferB() const {
+template <typename T>
+T *AdcDmaReader<T>::getBufferB() const
+{
     return captureBufB;
 };
 
-void AdcDmaReader::registerCallback(void (*callback)(uint8_t id, uint8_t* buffer, int size)) {
+template <typename T>
+void AdcDmaReader<T>::registerCallback(void (*callback)(uint8_t id, T *buffer, int size))
+{
     userCallback = callback;
 };
 
-void AdcDmaReader::dmaHandlerA() {
-    if (userCallback) userCallback(0, captureBufA, captureDepth);
+template <typename T>
+void AdcDmaReader<T>::dmaHandlerA()
+{
+    if (userCallback)
+        userCallback(0, captureBufA, captureDepth);
     dma_hw->ints0 = 1u << dmaChanA;
     dma_channel_set_write_addr(dmaChanA, captureBufA, false);
 };
 
-void AdcDmaReader::dmaHandlerB() {
-    if (userCallback) userCallback(1, captureBufB, captureDepth);
+template <typename T>
+void AdcDmaReader<T>::dmaHandlerB()
+{
+    if (userCallback)
+        userCallback(1, captureBufB, captureDepth);
     dma_hw->ints1 = 1u << dmaChanB;
     dma_channel_set_write_addr(dmaChanB, captureBufB, false);
 };
 
-void AdcDmaReader::setupAdc() {
-    adc_gpio_init(26 + captureChannel);
+template <typename T>
+void AdcDmaReader<T>::setupAdc()
+{
     adc_init();
-    adc_select_input(captureChannel);
-    adc_fifo_setup(true, true, 1, false, true);
+    configureRoundRobin();
+    adc_fifo_setup(true, true, 1, false, std::is_same<T, uint8_t>::value);
     adc_set_clkdiv(0);
 };
 
-void AdcDmaReader::setupDma() {
+template <typename T>
+void AdcDmaReader<T>::configureRoundRobin()
+{
+    uint mask = 0;
+    for (int channel : adcChannels)
+    {
+        mask |= (1u << channel);
+    }
+    adc_set_round_robin(mask);
+}
+
+template <typename T>
+dma_channel_transfer_size AdcDmaReader<T>::getDmaDataSize()
+{
+    if constexpr (std::is_same<T, uint8_t>::value)
+    {
+        return DMA_SIZE_8;
+    }
+    else if constexpr (std::is_same<T, uint16_t>::value)
+    {
+        return DMA_SIZE_16;
+    }
+    else
+    {
+        static_assert(std::is_same<T, void>::value, "Unsupported type for AdcDmaReader");
+        return -1; // This line is never reached but is required to avoid compile errors.
+    }
+}
+
+template <typename T>
+void AdcDmaReader<T>::setupDma()
+{
     dma_channel_config dmaCfgA, dmaCfgB;
 
     dmaChanA = dma_claim_unused_channel(true);
     dmaChanB = dma_claim_unused_channel(true);
 
     dmaCfgA = dma_channel_get_default_config(dmaChanA);
-    channel_config_set_transfer_data_size(&dmaCfgA, DMA_SIZE_8);
+    channel_config_set_transfer_data_size(&dmaCfgA, getDmaDataSize());
     channel_config_set_read_increment(&dmaCfgA, false);
     channel_config_set_write_increment(&dmaCfgA, true);
     channel_config_set_dreq(&dmaCfgA, DREQ_ADC);
     channel_config_set_chain_to(&dmaCfgA, dmaChanB);
 
     dmaCfgB = dma_channel_get_default_config(dmaChanB);
-    channel_config_set_transfer_data_size(&dmaCfgB, DMA_SIZE_8);
+    channel_config_set_transfer_data_size(&dmaCfgB, getDmaDataSize());
     channel_config_set_read_increment(&dmaCfgB, false);
     channel_config_set_write_increment(&dmaCfgB, true);
     channel_config_set_dreq(&dmaCfgB, DREQ_ADC);
@@ -83,12 +142,26 @@ void AdcDmaReader::setupDma() {
     dma_channel_set_irq1_enabled(dmaChanB, true);
     irq_set_exclusive_handler(DMA_IRQ_1, dmaHandlerB);
     irq_set_enabled(DMA_IRQ_1, true);
-};
+}
 
 // Static member initialization
-uint8_t* AdcDmaReader::captureBufA = nullptr;
-uint8_t* AdcDmaReader::captureBufB = nullptr;
-uint AdcDmaReader::dmaChanA = 0;
-uint AdcDmaReader::dmaChanB = 0;
-int AdcDmaReader::captureDepth = 0;
-void (*AdcDmaReader::userCallback)(uint8_t id, uint8_t* buffer, int size) = nullptr;
+template <typename T>
+T *AdcDmaReader<T>::captureBufA = nullptr;
+
+template <typename T>
+T *AdcDmaReader<T>::captureBufB = nullptr;
+
+template <typename T>
+uint AdcDmaReader<T>::dmaChanA = 0;
+
+template <typename T>
+uint AdcDmaReader<T>::dmaChanB = 0;
+
+template <typename T>
+int AdcDmaReader<T>::captureDepth = 0;
+
+template <typename T>
+void (*AdcDmaReader<T>::userCallback)(uint8_t id, T *buffer, int size) = nullptr;
+
+template class AdcDmaReader<uint8_t>;
+template class AdcDmaReader<uint16_t>;
