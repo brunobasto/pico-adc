@@ -27,3 +27,19 @@ target_link_libraries(${PROJECT_NAME}
     hardware_dma
     hardware_irq
 )
+
+## Example
+
+project(pico_dma_example C CXX ASM)
+
+add_executable(pico_dma_example
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+)
+
+target_link_libraries(pico_dma_example
+    pico_dma
+)
+
+pico_enable_stdio_usb(pico_dma_example 1)
+pico_enable_stdio_uart(pico_dma_example 0)
+pico_add_extra_outputs(pico_dma_example)
