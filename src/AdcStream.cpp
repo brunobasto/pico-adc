@@ -1,14 +1,14 @@
-#include "pico-dma/AdcDmaReader.h"
+#include "pico-adc/AdcStream.h"
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/irq.h"
 #include <stdio.h>
 
 template <typename T>
-AdcDmaReader<T>::AdcDmaReader(const std::vector<int> &channels, int depth) : adcChannels(channels)
+AdcStream<T>::AdcStream(const std::vector<int> &channels, int depth) : adcChannels(channels)
 {
     static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, uint16_t>::value,
-                  "AdcDmaReader can only be instantiated with uint8_t or uint16_t");
+                  "AdcStream can only be instantiated with uint8_t or uint16_t");
 
     captureDepth = depth;
     captureBufA = new T[captureDepth];
@@ -18,44 +18,44 @@ AdcDmaReader<T>::AdcDmaReader(const std::vector<int> &channels, int depth) : adc
 };
 
 template <typename T>
-AdcDmaReader<T>::~AdcDmaReader()
+AdcStream<T>::~AdcStream()
 {
     delete[] captureBufA;
     delete[] captureBufB;
 };
 
 template <typename T>
-void AdcDmaReader<T>::startCapture()
+void AdcStream<T>::startCapture()
 {
     adc_run(true);
 };
 
 template <typename T>
-void AdcDmaReader<T>::stopCapture()
+void AdcStream<T>::stopCapture()
 {
     adc_run(false);
 };
 
 template <typename T>
-T *AdcDmaReader<T>::getBufferA() const
+T *AdcStream<T>::getBufferA() const
 {
     return captureBufA;
 };
 
 template <typename T>
-T *AdcDmaReader<T>::getBufferB() const
+T *AdcStream<T>::getBufferB() const
 {
     return captureBufB;
 };
 
 template <typename T>
-void AdcDmaReader<T>::registerCallback(void (*callback)(uint8_t id, T *buffer, int size))
+void AdcStream<T>::registerCallback(void (*callback)(uint8_t id, T *buffer, int size))
 {
     userCallback = callback;
 };
 
 template <typename T>
-void AdcDmaReader<T>::dmaHandlerA()
+void AdcStream<T>::dmaHandlerA()
 {
     if (userCallback)
         userCallback(0, captureBufA, captureDepth);
@@ -64,7 +64,7 @@ void AdcDmaReader<T>::dmaHandlerA()
 };
 
 template <typename T>
-void AdcDmaReader<T>::dmaHandlerB()
+void AdcStream<T>::dmaHandlerB()
 {
     if (userCallback)
         userCallback(1, captureBufB, captureDepth);
@@ -73,7 +73,7 @@ void AdcDmaReader<T>::dmaHandlerB()
 };
 
 template <typename T>
-void AdcDmaReader<T>::setupAdc()
+void AdcStream<T>::setupAdc()
 {
     adc_init();
     configureRoundRobin();
@@ -82,7 +82,7 @@ void AdcDmaReader<T>::setupAdc()
 };
 
 template <typename T>
-void AdcDmaReader<T>::configureRoundRobin()
+void AdcStream<T>::configureRoundRobin()
 {
     uint mask = 0;
     for (int channel : adcChannels)
@@ -93,7 +93,7 @@ void AdcDmaReader<T>::configureRoundRobin()
 }
 
 template <typename T>
-dma_channel_transfer_size AdcDmaReader<T>::getDmaDataSize()
+dma_channel_transfer_size AdcStream<T>::getDmaDataSize()
 {
     if constexpr (std::is_same<T, uint8_t>::value)
     {
@@ -105,13 +105,13 @@ dma_channel_transfer_size AdcDmaReader<T>::getDmaDataSize()
     }
     else
     {
-        static_assert(std::is_same<T, void>::value, "Unsupported type for AdcDmaReader");
+        static_assert(std::is_same<T, void>::value, "Unsupported type for AdcStream");
         return -1; // This line is never reached but is required to avoid compile errors.
     }
 }
 
 template <typename T>
-void AdcDmaReader<T>::setupDma()
+void AdcStream<T>::setupDma()
 {
     dma_channel_config dmaCfgA, dmaCfgB;
 
@@ -146,22 +146,22 @@ void AdcDmaReader<T>::setupDma()
 
 // Static member initialization
 template <typename T>
-T *AdcDmaReader<T>::captureBufA = nullptr;
+T *AdcStream<T>::captureBufA = nullptr;
 
 template <typename T>
-T *AdcDmaReader<T>::captureBufB = nullptr;
+T *AdcStream<T>::captureBufB = nullptr;
 
 template <typename T>
-uint AdcDmaReader<T>::dmaChanA = 0;
+uint AdcStream<T>::dmaChanA = 0;
 
 template <typename T>
-uint AdcDmaReader<T>::dmaChanB = 0;
+uint AdcStream<T>::dmaChanB = 0;
 
 template <typename T>
-int AdcDmaReader<T>::captureDepth = 0;
+int AdcStream<T>::captureDepth = 0;
 
 template <typename T>
-void (*AdcDmaReader<T>::userCallback)(uint8_t id, T *buffer, int size) = nullptr;
+void (*AdcStream<T>::userCallback)(uint8_t id, T *buffer, int size) = nullptr;
 
-template class AdcDmaReader<uint8_t>;
-template class AdcDmaReader<uint16_t>;
+template class AdcStream<uint8_t>;
+template class AdcStream<uint16_t>;

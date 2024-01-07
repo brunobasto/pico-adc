@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 include(cmake/pico_sdk_import.cmake)
 
-project(pico_dma C CXX ASM)
+project(pico_adc C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -13,7 +13,7 @@ endif()
 pico_sdk_init()
 
 add_library(${PROJECT_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/AdcDmaReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AdcStream.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -30,16 +30,16 @@ target_link_libraries(${PROJECT_NAME}
 
 ## Example
 
-project(pico_dma_example C CXX ASM)
+project(pico_adc_example C CXX ASM)
 
-add_executable(pico_dma_example
+add_executable(pico_adc_example
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 )
 
-target_link_libraries(pico_dma_example
-    pico_dma
+target_link_libraries(pico_adc_example
+    pico_adc
 )
 
-pico_enable_stdio_usb(pico_dma_example 1)
-pico_enable_stdio_uart(pico_dma_example 0)
-pico_add_extra_outputs(pico_dma_example)
+pico_enable_stdio_usb(pico_adc_example 1)
+pico_enable_stdio_uart(pico_adc_example 0)
+pico_add_extra_outputs(pico_adc_example)

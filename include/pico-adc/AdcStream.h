@@ -1,5 +1,5 @@
-#ifndef ADC_DMA_READER_H
-#define ADC_DMA_READER_H
+#ifndef ADC_STREAM_H
+#define ADC_STREAM_H
 
 #include <stdint.h>
 #include <vector>
@@ -7,11 +7,11 @@
 #include "hardware/dma.h"
 
 template <typename T>
-class AdcDmaReader
+class AdcStream
 {
 public:
-    AdcDmaReader(const std::vector<int> &channels, int depth = 10000);
-    ~AdcDmaReader();
+    AdcStream(const std::vector<int> &channels, int depth = 10000);
+    ~AdcStream();
 
     void startCapture();
     void stopCapture();
@@ -38,4 +38,4 @@ private:
     int captureChannel;
 };
 
-#endif // ADC_DMA_READER_H
+#endif // ADC_STREAM_H
