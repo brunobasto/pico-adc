@@ -1,6 +1,6 @@
 #include <hardware/gpio.h>
 #include "hardware/adc.h"
-#include <pico-dma/AdcDmaReader.h>
+#include <pico-adc/AdcStream.h>
 #include <pico/stdlib.h>
 #include <stdio.h>
 
@@ -24,9 +24,9 @@ int main()
     adc_set_temp_sensor_enabled(true);
 
     std::vector<int> channels = {0, 1}; // Example channels
-    AdcDmaReader<uint8_t> adcReader(channels, CAPTURE_DEPTH);
-    adcReader.registerCallback(adc_capture);
-    adcReader.startCapture();
+    AdcStream<uint8_t> adcStream(channels, CAPTURE_DEPTH);
+    adcStream.registerCallback(adc_capture);
+    adcStream.startCapture();
 
     // Main loop
     while (true)
@@ -38,7 +38,7 @@ int main()
                 printf("Buffer A: ");
                 for (int i = 0; i < CAPTURE_DEPTH; i++)
                 {
-                    printf("%d ", adcReader.getBufferA()[i]);
+                    printf("%d ", adcStream.getBufferA()[i]);
                 }
                 printf("\n");
             }
@@ -48,7 +48,7 @@ int main()
                 printf("Buffer B: ");
                 for (int i = 0; i < CAPTURE_DEPTH; i++)
                 {
-                    printf("%d ", adcReader.getBufferB()[i]);
+                    printf("%d ", adcStream.getBufferB()[i]);
                 }
                 printf("\n");
             }
