@@ -77,7 +77,14 @@ void AdcStream<T>::setupAdc()
 {
     adc_init();
     configureRoundRobin();
-    adc_fifo_setup(true, true, 1, false, std::is_same<T, uint8_t>::value);
+    adc_fifo_setup(
+        true,                           // Enables the FIFO. When true, ADC readings are stored in the FIFO buffer.
+        true,                           // If true, the FIFO generates DMA requests when it has data.
+        1,                              // The number of conversions after which a DMA request is generated. Here, it's set to 1, meaning after each conversion.
+        false,                          // Determines whether a DMA request is generated when the FIFO is full. Here, it's set to false.
+        std::is_same<T, uint8_t>::value // Sets the data format in the FIFO. If true (for uint8_t), data is 8 bits; if false (for uint16_t), data is 12 bits.
+    );
+
     adc_set_clkdiv(0);
 };
 
@@ -113,35 +120,40 @@ dma_channel_transfer_size AdcStream<T>::getDmaDataSize()
 template <typename T>
 void AdcStream<T>::setupDma()
 {
+    // Claiming DMA channels
+    dmaChanA = dma_claim_unused_channel(true); // Claims an unused DMA channel and assigns it to dmaChanA.
+    dmaChanB = dma_claim_unused_channel(true); // Claims another unused DMA channel and assigns it to dmaChanB.
+
+    // Setting up DMA channel A
     dma_channel_config dmaCfgA, dmaCfgB;
 
-    dmaChanA = dma_claim_unused_channel(true);
-    dmaChanB = dma_claim_unused_channel(true);
+    dmaCfgA = dma_channel_get_default_config(dmaChanA);                // Gets the default DMA channel configuration for dmaChanA.
+    channel_config_set_transfer_data_size(&dmaCfgA, getDmaDataSize()); // Sets the data size for transfers (8 or 16 bits, based on T).
+    channel_config_set_read_increment(&dmaCfgA, false);                // Disables incrementing the read address (since reading from a constant address - the ADC FIFO).
+    channel_config_set_write_increment(&dmaCfgA, true);                // Enables incrementing the write address (writing to different parts of the buffer).
+    channel_config_set_dreq(&dmaCfgA, DREQ_ADC);                       // Sets the DMA to trigger on ADC conversion complete.
+    channel_config_set_chain_to(&dmaCfgA, dmaChanB);                   // Chains dmaChanA to dmaChanB, so that when dmaChanA completes, dmaChanB starts.
 
-    dmaCfgA = dma_channel_get_default_config(dmaChanA);
-    channel_config_set_transfer_data_size(&dmaCfgA, getDmaDataSize());
-    channel_config_set_read_increment(&dmaCfgA, false);
-    channel_config_set_write_increment(&dmaCfgA, true);
-    channel_config_set_dreq(&dmaCfgA, DREQ_ADC);
-    channel_config_set_chain_to(&dmaCfgA, dmaChanB);
+    // Setting up DMA channel B
+    dmaCfgB = dma_channel_get_default_config(dmaChanB);                // Gets the default DMA channel configuration for dmaChanB.
+    channel_config_set_transfer_data_size(&dmaCfgB, getDmaDataSize()); // Same as above, sets the data size for transfers.
+    channel_config_set_read_increment(&dmaCfgB, false);                // Same as above, disables incrementing the read address.
+    channel_config_set_write_increment(&dmaCfgB, true);                // Same as above, enables incrementing the write address.
+    channel_config_set_dreq(&dmaCfgB, DREQ_ADC);                       // Same as above, sets the DMA to trigger on ADC conversion complete.
+    channel_config_set_chain_to(&dmaCfgB, dmaChanA);                   // Chains dmaChanB to dmaChanA, creating a loop between A and B.
 
-    dmaCfgB = dma_channel_get_default_config(dmaChanB);
-    channel_config_set_transfer_data_size(&dmaCfgB, getDmaDataSize());
-    channel_config_set_read_increment(&dmaCfgB, false);
-    channel_config_set_write_increment(&dmaCfgB, true);
-    channel_config_set_dreq(&dmaCfgB, DREQ_ADC);
-    channel_config_set_chain_to(&dmaCfgB, dmaChanA);
+    // Configuring the channels for continuous circular buffer operation
+    dma_channel_configure(dmaChanA, &dmaCfgA, captureBufA, &adc_hw->fifo, captureDepth, true);  // Configures dmaChanA to write from ADC FIFO to captureBufA.
+    dma_channel_configure(dmaChanB, &dmaCfgB, captureBufB, &adc_hw->fifo, captureDepth, false); // Configures dmaChanB to write from ADC FIFO to captureBufB.
 
-    dma_channel_configure(dmaChanA, &dmaCfgA, captureBufA, &adc_hw->fifo, captureDepth, true);
-    dma_channel_configure(dmaChanB, &dmaCfgB, captureBufB, &adc_hw->fifo, captureDepth, false);
+    // Setting up IRQ (Interrupt Request) for DMA channels
+    dma_channel_set_irq0_enabled(dmaChanA, true);      // Enables interrupt requests for dmaChanA.
+    irq_set_exclusive_handler(DMA_IRQ_0, dmaHandlerA); // Sets dmaHandlerA as the interrupt handler for dmaChanA.
+    irq_set_enabled(DMA_IRQ_0, true);                  // Enables IRQ 0.
 
-    dma_channel_set_irq0_enabled(dmaChanA, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, dmaHandlerA);
-    irq_set_enabled(DMA_IRQ_0, true);
-
-    dma_channel_set_irq1_enabled(dmaChanB, true);
-    irq_set_exclusive_handler(DMA_IRQ_1, dmaHandlerB);
-    irq_set_enabled(DMA_IRQ_1, true);
+    dma_channel_set_irq1_enabled(dmaChanB, true);      // Enables interrupt requests for dmaChanB.
+    irq_set_exclusive_handler(DMA_IRQ_1, dmaHandlerB); // Sets dmaHandlerB as the interrupt handler for dmaChanB.
+    irq_set_enabled(DMA_IRQ_1, true);                  // Enables IRQ 1.
 }
 
 // Static member initialization
