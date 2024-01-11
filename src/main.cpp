@@ -1,57 +1,48 @@
 #include <hardware/gpio.h>
 #include "hardware/adc.h"
-#include <pico-adc/AdcStream.h>
 #include <pico/stdlib.h>
 #include <stdio.h>
+
+#include "pico-adc/AdcSampler.h"
+#include "pico-adc/PicoAdcHardware.h"
 
 #define CAPTURE_DEPTH 1000
 #define CAPTURE_CHANNEL 1
 
 static bool canPrint = true;
-static uint8_t readyId = 0;
+uint8_t* buffer = nullptr;
 
-void __not_in_flash_func(adc_capture)(uint8_t id, uint8_t *buf, int count)
+void adc_capture(uint8_t *buf, int count)
 {
     canPrint = true;
-    readyId = id;
+    buffer = buf;
 }
 
 // Usage example
 int main()
 {
     stdio_init_all();
-    gpio_set_dir_all_bits(0);
-    adc_set_temp_sensor_enabled(true);
 
-    std::vector<int> channels = {0, 1}; // Example channels
-    AdcStream<uint8_t> adcStream(channels, CAPTURE_DEPTH);
-    adcStream.registerCallback(adc_capture);
-    adcStream.startCapture();
+    std::vector<int> channels = {0}; // Example channel configuration
+
+    // Create a hardware-specific instance
+    PicoAdcHardware<uint8_t> picoHardware;
+    AdcSampler<uint8_t> sampler(&picoHardware, channels, CAPTURE_DEPTH);
+
+    sampler.onSamplingComplete(adc_capture);
+    sampler.startCapture();
 
     // Main loop
     while (true)
     {
         if (canPrint)
         {
-            if (readyId == 0)
+            printf("Buffer: ");
+            for (int i = 0; i < CAPTURE_DEPTH; i++)
             {
-                printf("Buffer A: ");
-                for (int i = 0; i < CAPTURE_DEPTH; i++)
-                {
-                    printf("%d ", adcStream.getBufferA()[i]);
-                }
-                printf("\n");
+                printf("%d ", buffer[i]);
             }
-            else
-            {
-
-                printf("Buffer B: ");
-                for (int i = 0; i < CAPTURE_DEPTH; i++)
-                {
-                    printf("%d ", adcStream.getBufferB()[i]);
-                }
-                printf("\n");
-            }
+            printf("\n");
 
             canPrint = false;
         }

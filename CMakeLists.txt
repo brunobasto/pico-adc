@@ -13,7 +13,7 @@ endif()
 pico_sdk_init()
 
 add_library(${PROJECT_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/AdcStream.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AdcSampler.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
