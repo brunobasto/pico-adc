@@ -1,6 +1,5 @@
 #include <vector>
-#include "pico/stdlib.h"
-
+#include <stdint.h>
 #include "pico-adc/IAdcHardware.h"
 
 template <typename T>
